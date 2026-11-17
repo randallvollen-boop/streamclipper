@@ -1,0 +1,31 @@
+# Example allow-list. Copy this file to config/streamers.yaml and edit it.
+#
+# Only a streamer listed here may be watched, recorded or clipped. "Listed"
+# is not enough: `clipper.allowlist.allowed()` also requires
+#   * status: verified, AND
+#   * at least one proof entry carrying both a url and the date it was checked.
+#
+# Every entry must record the source that shows the streamer publicly allows
+# clipping (their clipping-program brief, their own statement, or a sponsor
+# campaign) plus any conditions (credit line, monetisation, banned content).
+# Unverified = not allowed.
+#
+# The entry below is fictional. It stays unverified, so it is never watched.
+
+streamers:
+  - id: examplestreamer
+    name: ExampleStreamer
+    platform: kick            # kick, twitch or youtube
+    channel: examplestreamer  # for youtube, the @handle
+    status: unverified        # verified, pending, unverified or rejected
+    proof: []                 # to verify: add {url, kind, checked, note}, then set status: verified
+    # proof:
+    #   - url: https://example.test/clipping-policy
+    #     kind: program-brief   # program-brief, own-statement or campaign
+    #     checked: 2026-01-01   # the date you read it
+    #     note: "Where in the page it says clipping is allowed."
+    conditions:
+      credit_format: null       # e.g. "@ExampleStreamer on Kick"
+      monetisation: null
+      banned: []
+      notes: "Fictional example entry; no clipping policy exists."

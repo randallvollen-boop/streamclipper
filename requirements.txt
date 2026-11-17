@@ -1,0 +1,35 @@
+# StreamClipper's virtualenv (`.venv`), python 3.12.
+#
+#     python3 -m venv .venv
+#     .venv/bin/python -m pip install -r requirements.txt
+#
+# torch is the CPU build: this project never uses the GPU. The +cpu wheels
+# live on an extra index, so it has to be named here.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# The allow-list and the config.
+PyYAML==6.0.3
+# Tests.
+pytest==9.2.0
+# The listening agent.
+numpy==2.5.5
+# PANNs sound events (Cnn14_DecisionLevelMax) on the CPU, in-process.
+torch==2.14.0+cpu
+torchlibrosa==0.1.0
+librosa==1.0.1
+numba==0.68.1
+panns-inference==0.1.1
+# The transcript.
+faster-whisper==1.2.1
+# The MCP server.
+mcp==2.3.0
+# The review page's browser check. This is only the Python driver; install
+# the browser once with `.venv/bin/python -m playwright install chromium`.
+playwright==1.65.2
+
+# NOT in this virtualenv:
+#   streamlink — the recorder shells out to it. Install it once with
+#     pipx install streamlink
+#   The models are not downloaded by pip: the PANNs weights go in
+#   ~/panns_data/ (see the README) and faster-whisper small.en comes from the
+#   HuggingFace cache. Nothing in this project downloads a model at runtime.

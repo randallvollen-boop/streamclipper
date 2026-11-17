@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clip review — StreamClipper</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --ink: #15181d;
+    --muted: #5b6472;
+    --line: #dde2e8;
+    --accent: #245fd6;
+    --accent-ink: #ffffff;
+    --ok: #16653c;
+    --ok-bg: #e2f4ea;
+    --no: #a01b12;
+    --no-bg: #fbe6e4;
+    --chip: #eef1f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;
+      --card: #181c22;
+      --ink: #e9ecf1;
+      --muted: #98a2b0;
+      --line: #272d36;
+      --accent: #6f9bff;
+      --accent-ink: #0f1216;
+      --ok: #6fd39b;
+      --ok-bg: #14301f;
+      --no: #ff9d94;
+      --no-bg: #35191a;
+      --chip: #222831;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    overflow-wrap: anywhere;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 12px 12px 48px; }
+  h1 { font-size: 20px; margin: 8px 0 2px; }
+  .sub { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px;
+    margin: 0 0 14px;
+  }
+  .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .rank { font-weight: 700; font-size: 18px; }
+  .peak { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .score { color: var(--muted); font-size: 14px; }
+  .chip {
+    display: inline-block;
+    background: var(--chip);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 1px 9px;
+    font-size: 12px;
+    margin: 0 6px 6px 0;
+  }
+  .status { margin-left: auto; border-radius: 999px; padding: 2px 10px; font-size: 12px; border: 1px solid var(--line); }
+  .status + .status { margin-left: 0; }
+  .status.new { background: var(--chip); color: var(--muted); }
+  .status.approved { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+  .status.rejected { background: var(--no-bg); color: var(--no); border-color: var(--no); }
+  video {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    background: #000;
+    border-radius: 10px;
+    margin: 4px 0 10px;
+  }
+  h2 { font-size: 15px; margin: 12px 0 6px; }
+  fieldset { border: 1px solid var(--line); border-radius: 10px; margin: 0 0 10px; padding: 8px 10px; }
+  legend { font-size: 13px; color: var(--muted); padding: 0 4px; }
+  .hook { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; font-size: 14px; }
+  .hook input { margin-top: 3px; flex: none; }
+  .credit { font-size: 14px; color: var(--muted); margin: 0 0 10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+  .row label { flex: 1 1 120px; font-size: 13px; color: var(--muted); }
+  input[type="number"] {
+    width: 100%;
+    min-width: 0;
+    padding: 8px;
+    font: inherit;
+    font-size: 15px;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  input[type="range"] { width: 100%; margin: 4px 0 8px; }
+  .btn {
+    font: inherit;
+    font-size: 15px;
+    padding: 9px 14px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: var(--chip);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.danger { background: var(--no-bg); border-color: var(--no); color: var(--no); }
+  .btn:active { transform: translateY(1px); }
+  .panel { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; }
+  .msg { font-size: 14px; margin: 10px 0 0; color: var(--muted); }
+  .msg.good { color: var(--ok); }
+  .msg.bad { color: var(--no); }
+  .empty { color: var(--muted); font-size: 15px; padding: 12px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Clip review</h1>
+  <p class="sub" id="summary">Loading the kits…</p>
+  <main id="kits"></main>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  var state = { kits: [], messages: {}, hooks: {} };
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) { node.className = className; }
+    if (text !== undefined && text !== null) { node.textContent = String(text); }
+    return node;
+  }
+
+  function keyOf(kit) { return kit.run + "/" + kit.kit; }
+
+  function number(value, fallback) {
+    var parsed = parseFloat(value);
+    return isFinite(parsed) ? parsed : fallback;
+  }
+
+  function statusChip(status) {
+    var chip = el("span", "status " + (status || "new"), status || "new");
+    return chip;
+  }
+
+  function card(kit) {
+    var key = keyOf(kit);
+    var article = el("article", "card");
+
+    var head = el("div", "head");
+    head.appendChild(el("span", "rank", "#" + (kit.rank === null || kit.rank === undefined ? "?" : kit.rank)));
+    head.appendChild(el("span", "peak", kit.mmss || ""));
+    head.appendChild(el("span", "score", "score " + number(kit.score, 0).toFixed(2)));
+    if (kit.finished) { head.appendChild(el("span", "status approved", "finished")); }
+    head.appendChild(statusChip(kit.status));
+    article.appendChild(head);
+
+    var chips = el("div", "chips");
+    (kit.chips || []).forEach(function (text) { chips.appendChild(el("span", "chip", text)); });
+    article.appendChild(chips);
+
+    var video = document.createElement("video");
+    video.controls = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.setAttribute("playsinline", "");
+    video.setAttribute("aria-label", "The vertical clip");
+    if (kit.has_vertical) {
+      video.src = kit.media.vertical + "?v=" + (kit.version || 0) + "#t=0.5";
+      article.appendChild(video);
+    } else {
+      article.appendChild(el("p", "empty", "There is no vertical clip for this kit yet."));
+    }
+
+    var fieldset = el("fieldset", "hooks");
+    fieldset.appendChild(el("legend", null, "Hook line for the caption"));
+    var chosen = state.hooks[key] === undefined ? 0 : state.hooks[key];
+    (kit.hooks || []).forEach(function (hook, index) {
+      var label = el("label", "hook");
+      var radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "hook-" + kit.run + "-" + kit.kit;
+      radio.value = String(index);
+      radio.checked = index === chosen;
+      radio.addEventListener("change", function () { state.hooks[key] = index; });
+      label.appendChild(radio);
+      label.appendChild(el("span", "hook-text", hook));
+      fieldset.appendChild(label);
+    });
+    article.appendChild(fieldset);
+
+    article.appendChild(el("p", "credit", "Credit: " + (kit.credit || "none yet")));
+
+    var actions = el("div", "row");
+    var approve = el("button", "btn primary", "Approve");
+    approve.type = "button";
+    approve.addEventListener("click", function () {
+      decide(kit, "approve", { hook_index: chosen });
+    });
+    var reject = el("button", "btn danger", "Reject");
+    reject.type = "button";
+    reject.addEventListener("click", function () {
+      decide(kit, "reject", { reason: "" });
+    });
+    actions.appendChild(approve);
+    actions.appendChild(reject);
+    article.appendChild(actions);
+
+    var trim = el("div", "panel");
+    trim.appendChild(el("h2", null, "Trim the clip"));
+    var times = kit.times || {};
+    var trimRow = el("div", "row");
+    var inLabel = el("label", null, "In (seconds)");
+    var inInput = document.createElement("input");
+    inInput.type = "number";
+    inInput.step = "0.1";
+    inInput.min = "0";
+    inInput.value = number(times.start, 0);
+    inLabel.appendChild(inInput);
+    var outLabel = el("label", null, "Out (seconds)");
+    var outInput = document.createElement("input");
+    outInput.type = "number";
+    outInput.step = "0.1";
+    outInput.min = "0";
+    outInput.value = number(times.end, 0);
+    outLabel.appendChild(outInput);
+    trimRow.appendChild(inLabel);
+    trimRow.appendChild(outLabel);
+    trim.appendChild(trimRow);
+    var trimButton = el("button", "btn", "Trim the clip");
+    trimButton.type = "button";
+    trimButton.style.marginTop = "8px";
+    trimButton.addEventListener("click", function () {
+      decide(kit, "trim", { in_s: number(inInput.value, 0), out_s: number(outInput.value, 0) });
+    });
+    trim.appendChild(trimButton);
+    article.appendChild(trim);
+
+    var crop = el("div", "panel");
+    crop.appendChild(el("h2", null, "Move the picture sideways"));
+    var slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = "-1";
+    slider.max = "1";
+    slider.step = "0.05";
+    slider.value = number(kit.crop_x, 0);
+    slider.setAttribute("aria-label", "Horizontal offset of the picture");
+    crop.appendChild(slider);
+    var cropButton = el("button", "btn", "Move the picture");
+    cropButton.type = "button";
+    cropButton.addEventListener("click", function () {
+      decide(kit, "crop", { crop_x: number(slider.value, 0) });
+    });
+    crop.appendChild(cropButton);
+    article.appendChild(crop);
+
+    var message = state.messages[key];
+    if (message) {
+      var note = el("p", "msg " + (message.good ? "good" : "bad"), message.text);
+      note.setAttribute("role", "status");
+      article.appendChild(note);
+    }
+    return article;
+  }
+
+  function render() {
+    var main = document.getElementById("kits");
+    main.textContent = "";
+    if (!state.kits.length) {
+      main.appendChild(el("p", "empty", "There are no kits to review yet. Build one with: python -m clipper kits <run> --streamer self"));
+    } else {
+      state.kits.forEach(function (kit) { main.appendChild(card(kit)); });
+    }
+    var approved = state.kits.filter(function (kit) { return kit.status === "approved"; }).length;
+    var rejected = state.kits.filter(function (kit) { return kit.status === "rejected"; }).length;
+    document.getElementById("summary").textContent =
+      state.kits.length + " clip(s) — " + approved + " approved, " + rejected + " rejected";
+  }
+
+  function messageFor(action, data) {
+    if (action === "approve") { return { good: true, text: "Approved. The clip and its caption are in the hand-off folder." }; }
+    if (action === "reject") { return { good: true, text: "Rejected. The files are still there if you change your mind." }; }
+    if (action === "trim") {
+      var times = (data.result || {}).times || {};
+      return { good: true, text: "Trimmed. The clip is now " + number(times.duration, 0).toFixed(1) + " s." };
+    }
+    return { good: true, text: "The picture was moved." };
+  }
+
+  function decide(kit, action, payload) {
+    var key = keyOf(kit);
+    var body = { action: action };
+    Object.keys(payload || {}).forEach(function (name) { body[name] = payload[name]; });
+    fetch("/api/kits/" + encodeURIComponent(kit.run) + "/" + encodeURIComponent(kit.kit) + "/decision", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (response) {
+      return response.json().then(function (data) {
+        return { ok: response.ok, data: data };
+      });
+    }).then(function (result) {
+      if (!result.ok || result.data.ok === false) {
+        state.messages[key] = { good: false, text: result.data.error || "That did not work." };
+        render();
+        return;
+      }
+      state.messages[key] = messageFor(action, result.data);
+      load();
+    }).catch(function () {
+      state.messages[key] = { good: false, text: "The server did not answer. Try again." };
+      render();
+    });
+  }
+
+  function load() {
+    return fetch("/api/kits", { headers: { "Accept": "application/json" } })
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        state.kits = (data && data.kits) || [];
+        render();
+      })
+      .catch(function () {
+        state.kits = [];
+        document.getElementById("summary").textContent = "The kits could not be loaded.";
+        render();
+      });
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
