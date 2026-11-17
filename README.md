@@ -99,4 +99,4 @@ who is not allowed. Details in [docs/MCP.md](docs/MCP.md).
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE).
+All rights reserved. The code is public to read; using, copying or redistributing it needs written permission. See [LICENSE](LICENSE).
