@@ -86,8 +86,8 @@ in `config/clipper.yaml`. Runtime files go to `data/`, which is git-ignored.
 claude mcp add streamclipper -- <repo>/.venv/bin/python -m clipper.mcp_server
 ```
 
-Replace `<repo>` with the path of your checkout. Nine tools: `list_streamers`,
-`listen`, `make_kits`, `list_kits`, `get_kit`, `approve`, `reject`, `trim`,
+Replace `<repo>` with the path of your checkout. Eleven tools: `list_streamers`,
+`listen`, `make_kits`, `list_kits`, `get_kit`, `approve`, `kit_emotion`, `list_memes`, `reject`, `trim`,
 `handoff_list`. The MCP surface is stricter than the CLI: it refuses anyone
 who is not allowed. Details in [docs/MCP.md](docs/MCP.md).
 

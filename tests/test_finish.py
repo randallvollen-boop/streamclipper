@@ -66,3 +66,62 @@ def test_approve_hands_off_the_short(world):  # noqa: F811
     assert (folder / "caption.txt").exists()
     assert (world.kit_folder / "vertical.mp4").exists()
     assert library.get_kit(world.data_dir, RUN, KIT)["finished"] is True
+
+
+def test_meme_outro_appends_a_card(tmp_path: Path):
+    from clipper import meme
+    kit = tmp_path / "kit"
+    kit.mkdir()
+    audio.run([
+        "ffmpeg", "-hide_banner", "-v", "error", "-y",
+        "-f", "lavfi", "-i", "testsrc=size=1080x1920:rate=10:duration=3",
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=3",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
+        str(kit / "vertical.mp4"),
+    ])
+    data = tmp_path / "data"
+    (data / "memes" / "funny").mkdir(parents=True)
+    audio.run(["ffmpeg", "-hide_banner", "-v", "error", "-y", "-f", "lavfi",
+               "-i", "color=c=red:size=600x400", "-frames:v", "1", str(data / "memes/funny/red.png")])
+    assert meme.list_memes(data, "funny") == {"funny": ["funny/red.png"]}
+    assert meme.suggest_emotion(["Laughter and Giggle"]) == "funny"
+    assert meme.suggest_emotion(["Gasp"]) == "shock"
+    try:
+        meme.resolve(data, "../x.png")
+        assert False
+    except meme.MemeError:
+        pass
+    short = finish.finish(kit, "Hook", "@S", memes=[meme.resolve(data, "funny/red.png")])
+    assert abs(audio.probe_duration(short) - (3.0 + meme.OUTRO_SECONDS)) <= 0.3
+
+
+def test_meme_reaction_video_keeps_its_sound(tmp_path: Path):
+    from clipper import meme
+    kit = tmp_path / "kit"
+    kit.mkdir()
+    audio.run(["ffmpeg", "-hide_banner", "-v", "error", "-y",
+        "-f", "lavfi", "-i", "testsrc=size=1080x1920:rate=10:duration=2",
+        "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", "2",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(kit / "vertical.mp4")])
+    react = tmp_path / "react.mp4"
+    audio.run(["ffmpeg", "-hide_banner", "-v", "error", "-y",
+        "-f", "lavfi", "-i", "color=c=gray:size=576x576:rate=10:duration=1.5",
+        "-f", "lavfi", "-i", "sine=frequency=900:duration=1.5",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(react)])
+    short = finish.finish(kit, "H", "@S", memes=[react, react])
+    assert abs(audio.probe_duration(short) - 5.0) <= 0.3
+    vol = audio.run(["ffmpeg", "-v", "info", "-ss", "2.2", "-t", "1", "-i", str(short), "-vn",
+        "-af", "volumedetect", "-f", "null", "-"]).stderr
+    assert "mean_volume: -inf" not in vol
+
+
+def test_no_memes_means_no_outro(tmp_path: Path):
+    kit = tmp_path / "kit"
+    kit.mkdir()
+    audio.run(["ffmpeg", "-hide_banner", "-v", "error", "-y",
+        "-f", "lavfi", "-i", "testsrc=size=1080x1920:rate=10:duration=2",
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(kit / "vertical.mp4")])
+    for memes in (None, []):
+        short = finish.finish(kit, "H", "@S", memes=memes)
+        assert abs(audio.probe_duration(short) - 2.0) <= 0.1

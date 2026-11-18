@@ -88,8 +88,11 @@ def _filter_path(path: Path) -> str:
     return text.replace(",", "\\,").replace("[", "\\[").replace("]", "\\]").replace(";", "\\;")
 
 
-def finish(kit_dir: Path, hook: str, credit: str) -> Path:
-    """Burn captions, hook and credit into the kit's vertical. Returns short.mp4."""
+def finish(kit_dir: Path, hook: str, credit: str, memes: list[Path] | None = None) -> Path:
+    """Burn captions, hook and credit into the kit's vertical. Returns short.mp4.
+
+    `memes` (files from the meme library) are appended in order as closing cards.
+    """
     kit_dir = Path(kit_dir)
     vertical = kit_dir / "vertical.mp4"
     if not vertical.exists():
@@ -117,4 +120,8 @@ def finish(kit_dir: Path, hook: str, credit: str) -> Path:
             str(short),
         ]
     )
+    if memes:
+        from . import meme as meme_outro
+
+        meme_outro.append_memes(short, memes)
     return short

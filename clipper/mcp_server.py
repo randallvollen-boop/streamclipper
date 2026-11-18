@@ -1,6 +1,6 @@
 """The MCP server: the same clipper, over the Model Context Protocol.
 
-Nine tools, all thin wrappers over the functions the CLI and the review page
+Eleven tools, all thin wrappers over the functions the CLI and the review page
 already use (`clipper.library`, `clipper.listen`, `clipper.kit`,
 `clipper.allowlist`). No rule lives here that does not live somewhere else.
 
@@ -30,6 +30,7 @@ from mcp.server.mcpserver import MCPServer
 from . import allowlist
 from . import kit as kit_builder
 from . import library
+from . import meme as meme_outro
 from . import listen as listen_agent
 from .config import Config, load as load_config
 
@@ -266,15 +267,19 @@ def get_kit(run: str, kit: str) -> dict[str, Any]:
 
 
 @server.tool()
-def approve(run: str, kit: str, hook_index: int = 0) -> dict[str, Any]:
+def approve(run: str, kit: str, hook_index: int = 0, memes: list[str] | None = None) -> dict[str, Any]:
     """Approve a kit: the vertical and the caption go to the hand-off folder.
 
     `hook_index` picks the hook line (0, 1 or 2). A person still uploads it.
+    `memes` are names from `list_memes` (e.g. ["shock/speed-gasp.mp4"]), played in
+    order after the clip like the reaction cuts at the end of a TikTok. OPTIONAL:
+    leave it out for no meme (the default). Add one only when the user asks for a
+    meme or the clip clearly calls for it; see `kit_emotion` to pick by emotion.
     """
     config = _config()
     try:
         result = library.approve_kit(
-            config.data_dir, run, kit, hook_index=int(hook_index), config=config, who="mcp"
+            config.data_dir, run, kit, hook_index=int(hook_index), config=config, who="mcp", memes=memes
         )
     except library.LibraryError as exc:
         raise McpError(str(exc)) from exc
@@ -286,6 +291,49 @@ def approve(run: str, kit: str, hook_index: int = 0) -> dict[str, Any]:
         "files": result["files"],
         "caption": result["caption"],
     }
+
+
+@server.tool()
+def kit_emotion(run: str, kit: str) -> dict[str, Any]:
+    """What a clip feels like, so a fitting meme can be picked for its ending.
+
+    Returns the emotion its signals suggest, the hook lines, the words around
+    the peak, and the memes available for that emotion. Read the words and
+    override the suggestion when it is wrong, then pass a meme to `approve`.
+    """
+    config = _config()
+    try:
+        found = library.get_kit(config.data_dir, run, kit)
+    except library.LibraryError as exc:
+        raise McpError(str(exc)) from exc
+    chips = [str(c) for c in (found.get("chips") or [])]
+    emotion = meme_outro.suggest_emotion(chips)
+    words: list[str] = []
+    transcript = Path(found["folder"]) / "transcript.json"
+    if transcript.exists():
+        try:
+            data = json.loads(transcript.read_text(encoding="utf-8"))
+            peak, start = found["times"]["peak"], found["times"]["start"]
+            words = [
+                str(w.get("word", "")) for w in data.get("words", [])
+                if abs(float(w.get("start", 0)) - (peak - start)) <= 8
+            ]
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            words = []
+    return {
+        "suggested_emotion": emotion,
+        "signals": chips,
+        "hooks": found["hooks"],
+        "words_near_peak": " ".join(words),
+        "emotions": list(meme_outro.EMOTIONS),
+        "memes": meme_outro.list_memes(config.data_dir, emotion),
+    }
+
+
+@server.tool()
+def list_memes(emotion: str | None = None) -> dict[str, Any]:
+    """The meme library (data/memes/<emotion>/), one emotion or all of them."""
+    return {"memes": meme_outro.list_memes(_config().data_dir, emotion)}
 
 
 @server.tool()

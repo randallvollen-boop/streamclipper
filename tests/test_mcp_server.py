@@ -294,6 +294,8 @@ def test_the_stdio_server_lists_its_tools(allowlist_file):
         [
             "approve",
             "get_kit",
+            "kit_emotion",
+            "list_memes",
             "handoff_list",
             "list_kits",
             "list_streamers",

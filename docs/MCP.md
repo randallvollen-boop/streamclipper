@@ -1,6 +1,6 @@
 # The StreamClipper MCP server
 
-`clipper/mcp_server.py` serves the nine tools of the clipper over the Model
+`clipper/mcp_server.py` serves the eleven tools of the clipper over the Model
 Context Protocol, on stdio. It is the same code the CLI and the review page
 use — `clipper.library`, `clipper.listen`, `clipper.kit`,
 `clipper.allowlist` — so there is one implementation of every rule.
@@ -42,7 +42,9 @@ and `mcp`, and `ffmpeg` on the PATH.
 | `make_kits(run_name, streamer)` | cuts the remix kits of a finished run | one entry per kit: rank, times, folder, hooks, credit |
 | `list_kits(status=None)` | every kit, newest run first | kit, times, score, status, chips, hooks, paths |
 | `get_kit(run, kit)` | one kit | the same, for one kit |
-| `approve(run, kit, hook_index=0)` | approves a kit and puts it in the hand-off folder | the hand-off path, the files, the caption |
+| `approve(run, kit, hook_index=0, memes=None)` | approves a kit and puts it in the hand-off folder; optional `memes` (names from `list_memes`) are appended as closing reaction cards | the hand-off path, the files, the caption |
+| `kit_emotion(run, kit)` | the emotion a clip suggests, its words near the peak and the memes for that emotion | emotion, signals, hooks, memes |
+| `list_memes(emotion=None)` | the meme library, `data/memes/<emotion>/` (your own files) | names by emotion |
 | `reject(run, kit, reason=None)` | rejects a kit | the status and the reason |
 | `trim(run, kit, in_s, out_s)` | re-cuts a kit between two points of the source | the new window |
 | `handoff_list()` | what is waiting to be uploaded | one entry per approved kit |

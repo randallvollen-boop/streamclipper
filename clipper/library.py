@@ -28,6 +28,7 @@ from typing import Any, Sequence
 
 from . import audio
 from . import finish as finisher
+from . import meme as meme_outro
 from . import kit as kit_builder
 from .config import REPO_ROOT, Config
 
@@ -509,6 +510,7 @@ def approve_kit(
     hook_index: int = 0,
     config: Config | None = None,
     who: str = "local",
+    memes: list[str] | None = None,
 ) -> dict[str, Any]:
     """Approve a kit: make the finished Short, copy it and the caption to the hand-off."""
     if config is None:
@@ -530,8 +532,14 @@ def approve_kit(
 
     hook = hooks[index]
     credit = str(payload.get("credit") or "")
+    meme_files = []
+    for name in memes or []:
+        try:
+            meme_files.append(meme_outro.resolve(data_dir, name))
+        except meme_outro.MemeError as exc:
+            raise LibraryError(str(exc)) from exc
     try:
-        short = finisher.finish(folder, hook, credit)
+        short = finisher.finish(folder, hook, credit, memes=meme_files)
     except audio.MediaError as exc:
         raise LibraryError(f"{run}/{kit} could not be finished: {exc}") from exc
     target = handoff_folder(config, run, kit)
@@ -546,6 +554,7 @@ def approve_kit(
         who=who,
         hook_index=index,
         handoff=str(target),
+        **({"memes": list(memes)} if memes else {}),
     )
     return {
         "run": str(run),
